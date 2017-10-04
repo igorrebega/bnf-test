@@ -10,3 +10,5 @@ Math calculator for expression with BNF:
 <number> ::= <digit> | <number> <digit>
 <digit>  ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ```
+
+P.S. Use Lumen just for speed purposes

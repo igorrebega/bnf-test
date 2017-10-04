@@ -1,61 +1,94 @@
 <?php
 
+use App\Services\Calculator;
+
 class ExampleTest extends TestCase
 {
-    public function testNullInMustReturnNull()
+    /**
+     * @dataProvider validProvider
+     */
+    public function testValid($value, $expected)
     {
-        $this->expectRes('0', 0);
+        $this->assertSame($expected, $value);
     }
-
-    public function testWrongExpressionMustThrowError()
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        $calculator = new \App\Services\Calculator("((1)");
-        $calculator->result();
-    }
-
-    public function testWrongExpressionWith3Minus()
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        $calculator = new \App\Services\Calculator("3---3");
-        $calculator->result();
-    }
-
-    public function testArchesMustRunFirst()
-    {
-        $this->expectRes('(2+2)*2', 8);
-    }
-
-    public function testSubArchesMustRunFirst()
-    {
-        $this->expectRes('(2+2*(2))*2', 12);
-    }
-
-    public function testBigExpression()
-    {
-        $this->expectRes('200/-8+2*(3+5)-19', -28);
-    }
-
-    public function testAnotherBigExpr()
-    {
-        $this->expectRes('200/-8+2*(((3+5)-19))', -47);
-    }
-
-    public function testMinusBeforeArches()
-    {
-        $this->expectRes('-(4+3+3)', -10);
-    }
+//
 
     /**
-     * @param $in
-     * @param $out
+     * @dataProvider invalidProvider
      */
-    private function expectRes($in, $out)
+    public function testInvalid($value, $msg)
     {
-        $calculator = new \App\Services\Calculator($in);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessageRegExp('/^' . $msg . '/');
 
-        $this->assertEquals($out, $calculator->result());
+        (new Calculator($value))->result();
+    }
+
+    public function testNone()
+    {
+        $this->assertFalse((new Calculator(' '))->result());
+    }
+
+    public function invalidProvider()
+    {
+        return [
+            ['200++10', 'Cannot add'],
+            ['456**23', 'Cannot multiply'],
+            ['876---987', 'Cannot add'],
+            ['876-*987', 'Cannot add'],
+            ['876*+987', 'Cannot multiply'],
+            ['2.5+4', 'Bad character'],
+            ['4-+4', 'Cannot add'],
+            ['(3)(5)', 'Invalid expression'],
+            ['4-(--4)', 'Cannot calculate'],
+            ['4-(4+(-5/2)', 'Missing parentheses'],
+            ['(4-(4)+(-5)/2', 'Missing parentheses'],
+            ['*567+98899', 'Cannot parse'],
+            ['24/(-567+(+98899))', 'Cannot calculate'],
+            ['-(567+98899))', 'Unexpected parentheses'],
+            ['ssadsd', 'Bad character'],
+            ['87-5/(25/5+8-26/2)', 'Division by zero'],
+            ['78+(09-007))', 'Unexpected parentheses'],
+            ['78+9*7))', 'Unexpected parentheses']
+        ];
+    }
+
+    public function validProvider()
+    {
+        $data = [];
+
+        $values = [
+            '345',
+            '((2566))',
+            '-789787',
+            '-(-(-2566))',
+            '200+12*((1/-8)+1)-19',
+            '2*(-1)',
+            '4-(-4)',
+            '4--4',
+            '200+12*((1/8)+1)-19+2-4*5+-10+(81/9-4)+2*11',
+            '200+12*((1/8)+1)-19',
+            '4-(4+(-5+2))',
+            '(4-(4))+(-5)/2',
+            '(4-(4)+(-5)/2)',
+            '-(567+98899)',
+            '3*(4/2*2*3)/3*9*(4*(5*20)/10)',
+            '3*(4/2*2*3)/3*9*(4*(5*20)/10)+(4-(4)+(-5)+2)+(4-(4+(-5+2)))+98-87',
+            '3*(4/2*(2*3)/(3*9*(4)))*(5*20)/10+(4-(4)+((-5)+2))+(4)-(4+(-5+2)+(98-87))'
+        ];
+
+        foreach ($values as $value) {
+            $calc = new Calculator($value);
+
+            if (strpos($value, '--') !== false) {
+                $value = preg_replace("#--#", '+', $value);
+            }
+
+            eval("\$ret = $value;");
+
+            $data[] = [$calc->result(), $ret];
+        }
+
+        return $data;
     }
 }
